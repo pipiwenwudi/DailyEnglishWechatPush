@@ -1,0 +1,60 @@
+name: Daily English Push
+
+on:
+  schedule:
+    # 早上8点推送新词 (UTC 0 = 北京时间 8:00)
+    - cron: '0 0 * * *'
+    # 晚上8点推送复习 (UTC 12 = 北京时间 20:00)
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '推送类型'
+        required: true
+        default: 'morning'
+        type: choice
+        options:
+          - morning
+          - evening
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Determine push mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ github.event.inputs.mode }}" >> $GITHUB_OUTPUT
+          else
+            HOUR=$(date -u +%H)
+            if [ "$HOUR" = "00" ]; then
+              echo "mode=morning" >> $GITHUB_OUTPUT
+            else
+              echo "mode=evening" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Run push
+        env:
+          SEND_KEY: ${{ secrets.SEND_KEY }}
+        run: python scheduler.py ${{ steps.mode.outputs.mode }}
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add push_history.json review_plan.json
+          git diff --staged --quiet || git commit -m "Update learning progress [skip ci]"
+          git push
