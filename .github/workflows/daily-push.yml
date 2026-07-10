@@ -51,10 +51,5 @@ jobs:
           SEND_KEY: ${{ secrets.SEND_KEY }}
         run: python scheduler.py ${{ steps.mode.outputs.mode }}
 
-      - name: Commit changes
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add push_history.json review_plan.json
-          git diff --staged --quiet || git commit -m "Update learning progress [skip ci]"
-          git push
+      # Note: Learning progress is tracked via GitHub Artifacts if needed
+      # For now, we use a simple day-based selection that cycles through the word pool
